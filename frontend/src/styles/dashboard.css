@@ -1,0 +1,132 @@
+/* ============================================
+   DASHBOARD - Main Layout Container
+   ============================================ */
+
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+}
+
+.dashboard-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ============================================
+   CARD ROW AND FULL LAYOUTS
+   ============================================ */
+
+.card-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.card-full {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+/* ============================================
+   CHART STYLING
+   ============================================ */
+
+.recharts-wrapper {
+  margin: 20px 0;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.recharts-surface {
+  overflow: visible !important;
+}
+
+.recharts-text {
+  fill: #cbd5e1;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+
+@media (max-width: 1024px) {
+  .card-row {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard {
+    gap: 20px;
+  }
+
+  .dashboard-grid {
+    gap: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .card-row {
+    grid-template-columns: 1fr;
+  }
+
+  .card-full {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard {
+    gap: 16px;
+  }
+
+  .dashboard-grid {
+    gap: 16px;
+  }
+}
+
+
+.recharts-cartesian-axis-tick-value {
+  fill: #cbd5e1;
+}
+
+.recharts-tooltip-wrapper {
+  outline: none;
+}
+
+.recharts-default-tooltip {
+  background: #1e293b !important;
+  border: 1px solid #334155 !important;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.recharts-tooltip-label {
+  color: #e2e8f0 !important;
+}
+
+@media (max-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card {
+    padding: 15px;
+  }
+
+  .card h2 {
+    font-size: 18px;
+  }
+
+  .recharts-wrapper {
+    width: 100%;
+    overflow-x: auto;
+  }
+}

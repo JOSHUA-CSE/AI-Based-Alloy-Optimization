@@ -1,0 +1,131 @@
+/* ============================================
+   NAVBAR - Top Navigation Bar
+   ============================================ */
+
+.navbar {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 60px;
+  background: linear-gradient(135deg, #1e293b 0%, #0f1b2e 100%);
+  border-bottom: 1px solid rgba(52, 65, 85, 0.5);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  z-index: 200;
+}
+
+/* ============================================
+   NAVBAR BRAND
+   ============================================ */
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.navbar-brand-icon {
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.navbar-brand-title {
+  color: #e5e7eb;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  background: linear-gradient(135deg, #14B8A6 0%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ============================================
+   NAVBAR META
+   ============================================ */
+
+.navbar-meta {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.navbar-timestamp {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(20, 184, 166, 0.1);
+  border: 1px solid #334155;
+  border-radius: 6px;
+}
+
+.navbar-timestamp-icon {
+  font-size: 14px;
+  color: #14B8A6;
+}
+
+.navbar-timestamp-text {
+  color: #9ca3af;
+  font-size: 12px;
+  font-family: "Courier New", monospace;
+  font-weight: 500;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+
+@media (max-width: 768px) {
+  .navbar {
+    padding: 0 16px;
+  }
+
+  .navbar-brand-title {
+    font-size: 16px;
+  }
+
+  .navbar-meta {
+    gap: 12px;
+  }
+
+  .navbar-timestamp {
+    padding: 4px 10px;
+  }
+
+  .navbar-timestamp-text {
+    font-size: 11px;
+  }
+
+  .navbar-brand-icon {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 600px) {
+  .navbar {
+    padding: 0 12px;
+    height: 56px;
+  }
+
+  .navbar-brand-icon {
+    font-size: 18px;
+  }
+
+  .navbar-brand-title {
+    font-size: 14px;
+    letter-spacing: 0;
+  }
+
+  .navbar-timestamp {
+    display: none;
+  }
+}

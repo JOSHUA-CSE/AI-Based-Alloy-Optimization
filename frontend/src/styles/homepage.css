@@ -1,0 +1,97 @@
+/* =============================================
+   Light Theme Homepage Styles for SaaS Look
+   ============================================= */
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Smooth transitions */
+* {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(37, 99, 235, 0.5);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(37, 99, 235, 0.8);
+}
+
+/* Text Selection */
+::selection {
+  background: rgba(37, 99, 235, 0.2);
+  color: inherit;
+}
+
+/* Link Styling */
+a {
+  position: relative;
+}
+
+/* Subtle shadows for cards */
+.card-shadow {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.card-shadow:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Professional SaaS button styling */
+.btn-primary {
+  @apply px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-sm hover:shadow-md;
+}
+
+.btn-secondary {
+  @apply px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-sm hover:shadow-md;
+}
+
+.btn-outline {
+  @apply px-4 py-2 bg-white hover:bg-slate-50 text-slate-900 font-semibold rounded-lg border border-slate-200 hover:border-blue-200 transition-all duration-200 shadow-sm hover:shadow-md;
+}
+
+/* Accent color highlights */
+.accent-blue {
+  color: #2563eb;
+}
+
+.accent-green {
+  color: #10b981;
+}
+
+.accent-teal {
+  color: #14b8a6;
+}
+
+/* Subtle gradient backgrounds */
+.bg-gradient-soft-blue {
+  background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%);
+}
+
+/* Card states */
+.card-hover:hover {
+  border-color: #2563eb;
+  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.1),
+    0 2px 4px -1px rgba(37, 99, 235, 0.06);
+  transform: translateY(-1px);
+}
+
+/* Responsive utility */
+@media (max-width: 640px) {
+  body {
+    font-size: 14px;
+  }
+}
