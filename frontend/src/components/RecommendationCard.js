@@ -24,15 +24,43 @@ function RecommendationCard({ recommendations, deviationScore }) {
       <div>
         <p className="text-sm font-medium text-slate-700 mb-3">Suggested Changes</p>
         {recommendations && recommendations.length > 0 ? (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {recommendations.slice(0, 4).map((rec, idx) => {
-              const isIncrease = rec.includes("Increase");
+              // Handle both new structured format and legacy string format
+              const isStructured = typeof rec === "object";
+              const element = isStructured ? rec.element : rec;
+              const action = isStructured ? rec.action : (rec.includes("Increase") ? "increase" : "decrease");
+              const current = isStructured ? rec.current : null;
+              const recommended = isStructured ? rec.recommended : null;
+              const change = isStructured ? rec.change : null;
+              const reason = isStructured ? rec.reason : null;
+
+              const isIncrease = action === "increase";
+              
               return (
-                <div key={idx} className="flex items-center gap-2 p-2 rounded bg-slate-50 border border-slate-100">
-                  <span className={isIncrease ? "badge-success" : "badge-danger"}>
-                    {isIncrease ? "↑" : "↓"}
-                  </span>
-                  <span className="text-sm text-slate-700">{rec}</span>
+                <div key={idx} className="p-3 rounded-lg bg-slate-50 border border-slate-100">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-white font-bold ${isIncrease ? "bg-green-500" : "bg-red-500"}`}>
+                      {isIncrease ? "↑" : "↓"}
+                    </span>
+                    <span className="text-sm font-semibold text-slate-800">
+                      {isIncrease ? "Increase" : "Reduce"} {element}
+                    </span>
+                  </div>
+                  
+                  {isStructured && (
+                    <>
+                      <div className="ml-8 text-xs text-slate-600 space-y-1">
+                        <div className="flex justify-between">
+                          <span>{current?.toFixed(4)}% → {recommended?.toFixed(4)}%</span>
+                          <span className={`font-semibold ${isIncrease ? "text-green-600" : "text-red-600"}`}>
+                            {change > 0 ? "+" : ""}{change?.toFixed(4)}%
+                          </span>
+                        </div>
+                        <div className="text-slate-500 italic">{reason}</div>
+                      </div>
+                    </>
+                  )}
                 </div>
               );
             })}

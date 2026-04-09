@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import "../styles/history-page.css";
 
 function HistoryPage() {
@@ -9,13 +9,7 @@ function HistoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch history and statistics
-  useEffect(() => {
-    fetchHistory();
-    fetchStatistics();
-  }, [filter]);
-
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     try {
       setLoading(true);
       const url = new URL("http://localhost:8000/api/history/");
@@ -36,9 +30,9 @@ function HistoryPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
 
-  const fetchStatistics = async () => {
+  const fetchStatistics = useCallback(async () => {
     try {
       const response = await fetch("http://localhost:8000/api/statistics/");
       const data = await response.json();
@@ -49,7 +43,13 @@ function HistoryPage() {
     } catch (err) {
       console.error("Error fetching statistics:", err);
     }
-  };
+  }, []);
+
+  // Fetch history and statistics
+  useEffect(() => {
+    fetchHistory();
+    fetchStatistics();
+  }, [fetchHistory, fetchStatistics]);
 
   const fetchDecisionDetail = async (decisionId) => {
     try {
@@ -147,18 +147,31 @@ function HistoryPage() {
               <thead>
                 <tr>
                   <th>Element</th>
-                  <th>Suggested Value</th>
+                  <th>Current</th>
+                  <th>Suggested</th>
+                  <th>Change</th>
                   <th>Reason</th>
                 </tr>
               </thead>
               <tbody>
-                {selectedDecision.ai_recommendation?.map((rec, idx) => (
-                  <tr key={idx}>
-                    <td>{rec.element}</td>
-                    <td>{parseFloat(rec.suggested_value).toFixed(2)}%</td>
-                    <td>{rec.reason}</td>
-                  </tr>
-                ))}
+                {selectedDecision.ai_recommendation?.map((rec, idx) => {
+                  const current = selectedDecision.input_composition?.[rec.element] ?? 0;
+                  // Support both new format (rec.recommended) and legacy format (rec.suggested_value)
+                  const suggested = rec.recommended ?? rec.suggested_value ?? 0;
+                  const change = rec.change ?? (suggested - current);
+                  
+                  return (
+                    <tr key={idx}>
+                      <td><strong>{rec.element}</strong></td>
+                      <td>{parseFloat(current).toFixed(4)}%</td>
+                      <td>{parseFloat(suggested).toFixed(4)}%</td>
+                      <td style={{color: change > 0 ? '#10b981' : '#ef4444', fontWeight: 'bold'}}>
+                        {change > 0 ? '+' : ''}{parseFloat(change).toFixed(4)}%
+                      </td>
+                      <td>{rec.reason}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

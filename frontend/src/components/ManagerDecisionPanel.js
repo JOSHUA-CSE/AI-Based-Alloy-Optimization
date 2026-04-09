@@ -19,7 +19,10 @@ function ManagerDecisionPanel({ recommendations, originalComposition, data, onDe
     if (recommendations && Array.isArray(recommendations)) {
       const initial = {};
       recommendations.forEach((rec) => {
-        initial[rec.element] = rec.suggested_value;
+        // Support both new format (rec.recommended) and legacy format (rec.suggested_value)
+        const element = rec.element;
+        const suggestedValue = rec.recommended ?? rec.suggested_value ?? 0;
+        initial[element] = suggestedValue;
       });
       setEditedValues(initial);
     }
@@ -35,7 +38,10 @@ function ManagerDecisionPanel({ recommendations, originalComposition, data, onDe
   const handleReset = () => {
     const initial = {};
     recommendations.forEach((rec) => {
-      initial[rec.element] = rec.suggested_value;
+      // Support both new format (rec.recommended) and legacy format (rec.suggested_value)
+      const element = rec.element;
+      const suggestedValue = rec.recommended ?? rec.suggested_value ?? 0;
+      initial[element] = suggestedValue;
     });
     setEditedValues(initial);
     setMessage("");
@@ -43,12 +49,21 @@ function ManagerDecisionPanel({ recommendations, originalComposition, data, onDe
 
   // Build changes array for payload
   const buildChangesArray = () => {
-    return recommendations.map((rec) => ({
-      element: rec.element,
-      original: (originalComposition?.[rec.element] ?? 0),
-      recommended: rec.suggested_value,
-      final: editedValues[rec.element] ?? rec.suggested_value,
-    }));
+    return recommendations.map((rec) => {
+      const element = rec.element;
+      const original = originalComposition?.[element] ?? 0;
+      // Support both new format (rec.recommended) and legacy format (rec.suggested_value)
+      const recommended = rec.recommended ?? rec.suggested_value ?? 0;
+      const final = editedValues[element] ?? recommended;
+      
+      return {
+        element,
+        original: parseFloat(original.toFixed(4)),
+        recommended: parseFloat(recommended.toFixed(4)),
+        final: parseFloat(final.toFixed(4)),
+        change: parseFloat((final - original).toFixed(4)),
+      };
+    });
   };
 
   const handleApprove = async () => {
@@ -148,16 +163,19 @@ function ManagerDecisionPanel({ recommendations, originalComposition, data, onDe
           <h4>🎯 Recommended Changes ({recommendations.length})</h4>
           <div className="recommendation-cards">
             {recommendations.map((rec, index) => {
-              const current = originalComposition?.[rec.element] ?? 0;
-              const suggested = rec.suggested_value ?? 0;
-              const final = editedValues[rec.element] ?? suggested;
+              const element = rec.element;
+              const current = originalComposition?.[element] ?? 0;
+              // Support both new format (rec.recommended) and legacy format (rec.suggested_value)
+              const suggested = rec.recommended ?? rec.suggested_value ?? 0;
+              const change = rec.change ?? (suggested - current);
+              const final = editedValues[element] ?? suggested;
               const direction = getChangeDirection(current, suggested);
 
               return (
                 <div key={index} className="recommendation-card">
                   {/* Element Header with Change Indicator */}
                   <div className="card-header">
-                    <span className="element-name">{rec.element}</span>
+                    <span className="element-name">{element}</span>
                     <div className={`change-indicator ${direction}`}>
                       {direction === "increase" && <span className="arrow">↑</span>}
                       {direction === "decrease" && <span className="arrow">↓</span>}
@@ -171,14 +189,17 @@ function ManagerDecisionPanel({ recommendations, originalComposition, data, onDe
                   <div className="value-flow">
                     <div className="value-item">
                       <div className="value-label">Current</div>
-                      <div className="value-display">{current.toFixed(2)}%</div>
+                      <div className="value-display">{current.toFixed(4)}%</div>
                     </div>
 
                     <div className="arrow-spacer">→</div>
 
                     <div className="value-item">
                       <div className="value-label">Suggested</div>
-                      <div className="value-display">{suggested.toFixed(2)}%</div>
+                      <div className="value-display">{suggested.toFixed(4)}%</div>
+                      <div className="change-badge" style={{color: change > 0 ? '#10b981' : '#ef4444'}}>
+                        {change > 0 ? '+' : ''}{change.toFixed(4)}%
+                      </div>
                     </div>
 
                     <div className="arrow-spacer">→</div>
@@ -191,8 +212,8 @@ function ManagerDecisionPanel({ recommendations, originalComposition, data, onDe
                           step="0.01"
                           min="0"
                           max="100"
-                          value={final.toFixed(2)}
-                          onChange={(e) => handleValueChange(rec.element, e.target.value)}
+                          value={final.toFixed(4)}
+                          onChange={(e) => handleValueChange(element, e.target.value)}
                           className="value-input"
                         />
                         <span className="unit">%</span>

@@ -94,12 +94,15 @@ def predict_with_confidence(comp):
 
 def recommend_changes(comp):
     """
-    Generate recommendations based on correlation with strength.
+    Generate detailed recommendations with exact numerical changes.
     
     PIPELINE LOGIC:
     - Uses correlation matrix
     - If corr > 0.1 and current < mean → Increase
     - If corr < -0.1 and current > mean → Reduce
+    
+    Returns:
+    - List of dicts with: element, current, recommended, change, action, reason
     """
     recs = []
     
@@ -112,22 +115,45 @@ def recommend_changes(comp):
                 col_mean = column_means.get(col, 0) if hasattr(column_means, 'get') else column_means[col]
                 col_corr = corr_strength.get(col, 0) if hasattr(corr_strength, 'get') else corr_strength[col]
                 
+                current_val = float(comp[i])
+                
                 # Positive correlation: increase if below mean
-                if col_corr > 0.1 and comp[i] < col_mean:
-                    recs.append(f"Increase {col}")
+                if col_corr > 0.1 and current_val < col_mean:
+                    recommended_val = float(col_mean)
+                    change = round(recommended_val - current_val, 4)
+                    recs.append({
+                        "element": col,
+                        "current": round(current_val, 4),
+                        "recommended": round(recommended_val, 4),
+                        "change": change,
+                        "action": "increase",
+                        "reason": f"Positive correlation with strength (r={round(col_corr, 3)})"
+                    })
+                
                 # Negative correlation: reduce if above mean
-                elif col_corr < -0.1 and comp[i] > col_mean:
-                    recs.append(f"Reduce {col}")
+                elif col_corr < -0.1 and current_val > col_mean:
+                    recommended_val = float(col_mean)
+                    change = round(recommended_val - current_val, 4)
+                    recs.append({
+                        "element": col,
+                        "current": round(current_val, 4),
+                        "recommended": round(recommended_val, 4),
+                        "change": change,
+                        "action": "decrease",
+                        "reason": f"Negative correlation with strength (r={round(col_corr, 3)})"
+                    })
         except Exception as e:
             logger.warning(f"Error in correlation-based recommendations: {e}")
             recs = []
     
-    # Fallback: if no pipeline data, return empty or basic recs
+    # Fallback: if no pipeline data, return empty recommendations
     if not recs:
         logger.warning("Using fallback recommendations (no pipeline data)")
-        recs = [f"Composition analysis complete for {col}" for col in columns[:5]]
+        recs = []
     
-    return recs[:8]  # Return top 8 recommendations
+    # Sort by absolute change magnitude and return top 8
+    sorted_recs = sorted(recs, key=lambda x: abs(x["change"]), reverse=True)
+    return sorted_recs[:8]
 
 
 def root_cause_analysis(comp):
