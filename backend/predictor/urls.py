@@ -5,7 +5,9 @@ from .views import (
     manager_decision,
     get_history,
     get_decision_detail,
-    get_statistics
+    get_statistics,
+    compare_alloys,
+    what_if_scenario
 )
 
 urlpatterns = [
@@ -15,4 +17,6 @@ urlpatterns = [
     path('history/', get_history),
     path('history/<int:decision_id>/', get_decision_detail),
     path('statistics/', get_statistics),
+    path('compare/', compare_alloys),
+    path('what-if/', what_if_scenario),
 ]

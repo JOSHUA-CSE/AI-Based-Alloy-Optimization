@@ -80,7 +80,6 @@ const generateSampleData = () => {
 
 function InputCard({ setResult, setOriginalComposition, setLoading, setError }) {
   const [values, setValues] = useState(Object.fromEntries(ALL_ELEMENTS.map(e => [e, ""])));
-  const [targetStrength, setTargetStrength] = useState("");
   const [animatingElements, setAnimatingElements] = useState(new Set());
   const [generationMode, setGenerationMode] = useState(null); // Track generation mode
 
@@ -103,7 +102,6 @@ function InputCard({ setResult, setOriginalComposition, setLoading, setError }) 
 
   const resetForm = () => {
     setValues(Object.fromEntries(ALL_ELEMENTS.map(e => [e, ""])));
-    setTargetStrength("");
     setGenerationMode(null);
     setError(null);
   };
@@ -226,18 +224,6 @@ function InputCard({ setResult, setOriginalComposition, setLoading, setError }) 
       )}
 
       {/* Target Strength */}
-      <div className="mb-6 pb-6 border-b border-slate-300">
-        <label className="block text-sm font-medium text-slate-700 mb-2">Target Strength (MPa) - Optional</label>
-        <input
-          type="number"
-          placeholder="e.g., 850"
-          value={targetStrength}
-          onChange={(e) => setTargetStrength(e.target.value)}
-          className="w-full md:w-64 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-500 focus:border-transparent"
-        />
-      </div>
-
-      {/* Action Buttons */}
       <div className="flex gap-3">
         <button 
           onClick={handleSubmit}

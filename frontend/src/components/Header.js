@@ -14,7 +14,7 @@ function Header({ result, originalComposition, onBack, onViewHistory }) {
     const separator60 = "═".repeat(70);
 
     reportLines.push(separator60);
-    reportLines.push("AI ALLOY DESIGNER - COMPREHENSIVE ANALYSIS REPORT");
+    reportLines.push("ALLOYFY - COMPREHENSIVE ANALYSIS REPORT");
     reportLines.push(separator60);
     reportLines.push("");
     reportLines.push(`Generated: ${timestamp}`);
@@ -234,8 +234,8 @@ function Header({ result, originalComposition, onBack, onViewHistory }) {
             )}
             <div className="text-3xl">🧪</div>
             <div>
-              <h1 className="text-2xl font-bold text-navy-500">AI Alloy Designer</h1>
-              <p className="text-sm text-slate-500">Predict, optimize, and analyze alloy compositions.</p>
+              <h1 className="text-2xl font-bold text-navy-500">Alloyfy</h1>
+              <p className="text-sm text-slate-500">Professional alloy prediction & optimization</p>
             </div>
           </div>
           <div className="flex gap-2">

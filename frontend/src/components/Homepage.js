@@ -20,7 +20,7 @@ const Homepage = ({ onNavigateToDashboard }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex justify-between items-center">
           <div className="flex items-center gap-2">
             <span className="text-2xl">⚗️</span>
-            <span className="text-xl font-bold text-slate-900">AlloySense AI</span>
+            <span className="text-xl font-bold text-slate-900">Alloyfy</span>
           </div>
           <button
             onClick={handleDashboardClick}

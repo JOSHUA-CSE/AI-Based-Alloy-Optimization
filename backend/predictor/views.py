@@ -8,7 +8,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from dotenv import load_dotenv
-from .models import ManagerDecision, MachineLog
+from .models import ManagerDecision, MachineLog, PreviousRun
 
 # Explicitly load .env from the backend root (where manage.py lives)
 load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env")
@@ -28,6 +28,8 @@ from .ml.predictor import (
     risk_analysis,
     optimize,
     deviation_score,
+    what_if_element_variation,
+    compare_compositions,
     columns
 )
 
@@ -368,4 +370,170 @@ def get_statistics(request):
         logger.error(f"Statistics error: {traceback.format_exc()}")
         return Response({
             'error': f'Error fetching statistics: {str(e)}'
+        }, status=500)
+
+
+# ============================================
+# FEATURE 6: COMPARE COMPOSITIONS
+# ============================================
+
+@api_view(['POST'])
+def compare_alloys(request):
+    """
+    Compare multiple alloy compositions.
+    
+    Request body:
+    {
+        "compositions": [
+            { "Al": 0, "As": 0, ..., "Zr": 0 },  # Composition 1
+            { "Al": 5, "As": 0, ..., "Zr": 0 }   # Composition 2
+        ],
+        "comparison_name": "Optional analysis name"
+    }
+    """
+    try:
+        data = request.data
+        compositions_dict = data.get('compositions', [])
+        comparison_name = data.get('comparison_name', f'Comparison - {timezone.now().isoformat()}')
+        
+        if not compositions_dict or len(compositions_dict) < 2:
+            return Response({
+                'error': 'Please provide at least 2 compositions for comparison'
+            }, status=400)
+        
+        # Parse and normalize all compositions
+        compositions_array = []
+        for i, comp_dict in enumerate(compositions_dict):
+            try:
+                comp = np.array([float(comp_dict.get(col, 0)) if comp_dict.get(col) else 0 for col in columns])
+            except (ValueError, TypeError) as e:
+                logger.error(f"Composition {i} parsing error: {e}")
+                return Response({
+                    'error': f'Invalid values in composition {i+1}. All values must be numeric.',
+                    'details': str(e)
+                }, status=400)
+            
+            if np.all(comp == 0):
+                return Response({
+                    'error': f'Composition {i+1} has no elements. Please enter at least one element value.'
+                }, status=400)
+            
+            # Normalize
+            comp = normalize(comp)
+            compositions_array.append(comp)
+        
+        # Run comparison
+        comparison_results = compare_compositions(compositions_array)
+        
+        # Save comparison runs to database
+        for i, result in enumerate(comparison_results['results']):
+            PreviousRun.objects.create(
+                composition=result['composition'],
+                composition_total=100.0,
+                strength_prediction=result['strength'],
+                melting_temp_prediction=result['melting_temp'],
+                confidence=result['confidence'],
+                run_type='comparison',
+                analysis_name=comparison_name,
+                full_response=result
+            )
+        
+        logger.info(f"Comparison completed: {comparison_name}")
+        
+        return Response({
+            'success': True,
+            'comparison_name': comparison_name,
+            'comparison': comparison_results
+        })
+    
+    except Exception as e:
+        logger.error(f"Comparison error: {traceback.format_exc()}")
+        return Response({
+            'error': f'Error in comparison: {str(e)}',
+            'details': traceback.format_exc()
+        }, status=500)
+
+
+# ============================================
+# FEATURE 7: WHAT-IF SCENARIOS
+# ============================================
+
+@api_view(['POST'])
+def what_if_scenario(request):
+    """
+    Run what-if scenario: vary one element and see property changes.
+    
+    Request body:
+    {
+        "composition": { "Al": 0, "As": 0, ..., "Zr": 0 },  # Base composition
+        "element_name": "Fe",                               # Element to vary
+        "variation_percentage": 1.0,                        # ±1%
+        "num_steps": 21,                                    # Number of simulation points (optional)
+        "scenario_name": "What-If: Increasing Fe"          # Optional name
+    }
+    """
+    try:
+        data = request.data
+        composition_dict = data.get('composition')
+        element_name = data.get('element_name')
+        variation_percentage = float(data.get('variation_percentage', 1.0))
+        num_steps = int(data.get('num_steps', 21))
+        scenario_name = data.get('scenario_name', f'What-If: {element_name} variation')
+        
+        if not composition_dict or not element_name:
+            return Response({
+                'error': 'Missing required fields: composition, element_name'
+            }, status=400)
+        
+        if element_name not in columns:
+            return Response({
+                'error': f'Element "{element_name}" not found. Valid elements: {columns}'
+            }, status=400)
+        
+        # Parse and normalize composition
+        try:
+            comp = np.array([float(composition_dict.get(col, 0)) if composition_dict.get(col) else 0 for col in columns])
+        except (ValueError, TypeError) as e:
+            logger.error(f"Input parsing error: {e}")
+            return Response({
+                'error': 'Invalid input values. All values must be numeric.',
+                'details': str(e)
+            }, status=400)
+        
+        if np.all(comp == 0):
+            return Response({
+                'error': 'Please enter at least one element composition value.'
+            }, status=400)
+        
+        # Normalize
+        comp = normalize(comp)
+        
+        # Run what-if scenario
+        scenario_results = what_if_element_variation(comp, element_name, variation_percentage, num_steps)
+        
+        # Save to database
+        whatif_run = PreviousRun.objects.create(
+            composition={col: float(val) for col, val in zip(columns, comp.tolist())},
+            composition_total=100.0,
+            strength_prediction=scenario_results['baseline_strength'],
+            melting_temp_prediction=scenario_results['baseline_melting_temp'],
+            confidence=100,
+            run_type='what_if',
+            analysis_name=scenario_name,
+            full_response=scenario_results
+        )
+        
+        logger.info(f"What-if scenario completed: {scenario_name}")
+        
+        return Response({
+            'success': True,
+            'scenario_name': scenario_name,
+            'scenario': scenario_results
+        })
+    
+    except Exception as e:
+        logger.error(f"What-if scenario error: {traceback.format_exc()}")
+        return Response({
+            'error': f'Error in what-if scenario: {str(e)}',
+            'details': traceback.format_exc()
         }, status=500)

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import Header from "./components/Header";
 import InputCard from "./components/InputCard";
-import Dashboard from "./components/Dashboard";
+import AnalysisPanel from "./components/AnalysisPanel";
 import HistoryPage from "./components/HistoryPage";
 import ChatWidget from "./components/ChatWidget";
 import Homepage from "./components/Homepage";
@@ -90,13 +90,13 @@ function App() {
           </div>
         )}
 
-        {result && !loading && <Dashboard data={result} originalComposition={originalComposition} onNavigateToHistory={handleViewHistory} />}
+        {result && !loading && <AnalysisPanel data={result} originalComposition={originalComposition} onNavigateToHistory={handleViewHistory} />}
 
         {!result && !loading && !error && (
           <div className="mt-16 text-center py-12">
             <div className="text-5xl mb-4">🧪</div>
-            <h2 className="text-2xl font-semibold text-slate-900 mb-2">Welcome to AI Alloy Designer</h2>
-            <p className="text-slate-500">Enter alloy composition to predict properties and optimize formulations</p>
+            <h2 className="text-2xl font-semibold text-slate-900 mb-2">Alloyfy</h2>
+            <p className="text-slate-500">Intelligent alloy optimization platform</p>
           </div>
         )}
       </main>

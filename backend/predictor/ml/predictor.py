@@ -367,3 +367,177 @@ def deviation_score(original, optimized):
     # Normalize to 0-100 scale
     normalized = min(100, deviation)
     return normalized
+
+
+def what_if_element_variation(comp, element_name, variation_percentage, num_steps=21):
+    """
+    Simulate varying a single element across a range while keeping composition at 100%.
+    Remaining elements adjusted proportionally.
+    
+    Args:
+        comp: numpy array of normalized composition (100%)
+        element_name: name of element to vary (e.g., "Fe", "C")
+        variation_percentage: ±percentage to vary (e.g., 1.0 = ±1%)
+        num_steps: number of simulation points (default 21 = 0%, 5%, 10%, ..., 100%)
+    
+    Returns:
+        dict with:
+            - variations: list of {current_pct, strength, melting_temp, other_elements}
+            - element_index: index in composition array
+            - baseline_strength: strength at current composition
+            - baseline_melting_temp: melting temp at current composition
+            - sensitivity: estimated property change per 1% element change
+    """
+    
+    if element_name not in columns:
+        raise ValueError(f"Element {element_name} not found in composition")
+    
+    element_idx = columns.index(element_name)
+    base_element_value = float(comp[element_idx])
+    
+    # Get baseline predictions
+    base_pred, base_conf = predict_with_confidence(comp)
+    baseline_strength = float(base_pred[0])
+    baseline_melting_temp = float(base_pred[1])
+    
+    # Calculate variation range
+    min_variation = max(0, base_element_value - variation_percentage)
+    max_variation = min(100, base_element_value + variation_percentage)
+    
+    # Generate steps
+    variations_list = []
+    strength_values = []
+    melting_temp_values = []
+    
+    for step in range(num_steps):
+        # Linear interpolation from min to max
+        progress = step / (num_steps - 1) if num_steps > 1 else 0
+        new_element_value = min_variation + progress * (max_variation - min_variation)
+        
+        # Create modified composition
+        trial = np.array(comp, dtype=float)
+        original_other_sum = np.sum(trial) - trial[element_idx]
+        
+        # Update element value
+        trial[element_idx] = new_element_value
+        new_other_sum = original_other_sum
+        current_total = new_element_value + new_other_sum
+        
+        # Normalize to 100%
+        if current_total > 0:
+            trial = (trial / current_total) * 100
+        
+        # Make prediction
+        try:
+            pred, conf = predict_with_confidence(trial)
+            strength = float(pred[0])
+            melting_temp = float(pred[1])
+        except:
+            strength = baseline_strength
+            melting_temp = baseline_melting_temp
+        
+        # Store variation data
+        variations_list.append({
+            "element_percentage": round(new_element_value, 2),
+            "strength": round(strength, 2),
+            "melting_temp": round(melting_temp, 2),
+            "strength_delta": round(strength - baseline_strength, 2),
+            "melting_temp_delta": round(melting_temp - baseline_melting_temp, 2)
+        })
+        
+        strength_values.append(strength)
+        melting_temp_values.append(melting_temp)
+    
+    # Calculate sensitivity (change in property per 1% element change)
+    range_span = max_variation - min_variation
+    if range_span > 0 and len(strength_values) > 1:
+        strength_sensitivity = (strength_values[-1] - strength_values[0]) / range_span
+        melting_temp_sensitivity = (melting_temp_values[-1] - melting_temp_values[0]) / range_span
+    else:
+        strength_sensitivity = 0
+        melting_temp_sensitivity = 0
+    
+    return {
+        "variations": variations_list,
+        "element_index": element_idx,
+        "element_name": element_name,
+        "baseline_strength": round(baseline_strength, 2),
+        "baseline_melting_temp": round(baseline_melting_temp, 2),
+        "strength_sensitivity": round(strength_sensitivity, 4),
+        "melting_temp_sensitivity": round(melting_temp_sensitivity, 4),
+        "variation_range": {
+            "min": round(min_variation, 2),
+            "max": round(max_variation, 2)
+        }
+    }
+
+
+def compare_compositions(compositions_list):
+    """
+    Compare multiple alloy compositions.
+    
+    Args:
+        compositions_list: list of numpy arrays (each normalized to 100%)
+    
+    Returns:
+        dict with comparison results including:
+            - results: list of predictions for each composition
+            - deltas: property changes vs first (baseline) composition
+            - percent_changes: percentage changes vs baseline
+    """
+    
+    results = []
+    baseline_pred = None
+    
+    for i, comp in enumerate(compositions_list):
+        # Make prediction
+        try:
+            pred, conf = predict_with_confidence(comp)
+            strength = float(pred[0])
+            melting_temp = float(pred[1])
+        except Exception as e:
+            logger.error(f"Error predicting composition {i}: {e}")
+            strength = 0
+            melting_temp = 0
+            conf = 0
+        
+        # Store baseline
+        if i == 0:
+            baseline_pred = {
+                "strength": strength,
+                "melting_temp": melting_temp
+            }
+        
+        # Build result
+        result_entry = {
+            "index": i,
+            "composition": {col: round(float(val), 2) for col, val in zip(columns, comp.tolist())},
+            "strength": round(strength, 2),
+            "melting_temp": round(melting_temp, 2),
+            "confidence": int(conf)
+        }
+        
+        # Add deltas vs baseline
+        if baseline_pred:
+            strength_delta = strength - baseline_pred["strength"]
+            melting_temp_delta = melting_temp - baseline_pred["melting_temp"]
+            
+            # Calculate percentage change
+            strength_pct_change = (strength_delta / baseline_pred["strength"] * 100) if baseline_pred["strength"] != 0 else 0
+            melting_temp_pct_change = (melting_temp_delta / baseline_pred["melting_temp"] * 100) if baseline_pred["melting_temp"] != 0 else 0
+            
+            result_entry["vs_baseline"] = {
+                "strength_delta": round(strength_delta, 2),
+                "strength_percent_change": round(strength_pct_change, 2),
+                "melting_temp_delta": round(melting_temp_delta, 2),
+                "melting_temp_percent_change": round(melting_temp_pct_change, 2),
+                "is_improvement": strength_delta >= 0
+            }
+        
+        results.append(result_entry)
+    
+    return {
+        "results": results,
+        "baseline": results[0] if results else None,
+        "composition_count": len(results)
+    }
