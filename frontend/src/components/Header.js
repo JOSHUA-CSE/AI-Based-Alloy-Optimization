@@ -1,4 +1,5 @@
 import React from "react";
+import AllofyLogo from "./AllofyLogo";
 
 function Header({ result, originalComposition, onBack, onViewHistory }) {
   const generateReport = () => {
@@ -232,7 +233,7 @@ function Header({ result, originalComposition, onBack, onViewHistory }) {
                 ← Back to Home
               </button>
             )}
-            <div className="text-3xl">🧪</div>
+            <AllofyLogo size={40} />
             <div>
               <h1 className="text-2xl font-bold text-navy-500">Alloyfy</h1>
               <p className="text-sm text-slate-500">Professional alloy prediction & optimization</p>

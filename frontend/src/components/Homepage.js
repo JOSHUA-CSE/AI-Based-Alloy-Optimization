@@ -5,6 +5,7 @@ import HomeAbout from "./sections/HomeAbout";
 import HomeHowItWorks from "./sections/HomeHowItWorks";
 import HomeCTA from "./sections/HomeCTA";
 import HomeFooter from "./sections/HomeFooter";
+import AllofyLogo from "./AllofyLogo";
 
 const Homepage = ({ onNavigateToDashboard }) => {
   const handleDashboardClick = () => {
@@ -19,7 +20,7 @@ const Homepage = ({ onNavigateToDashboard }) => {
       <nav className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">⚗️</span>
+            <AllofyLogo size={32} />
             <span className="text-xl font-bold text-slate-900">Alloyfy</span>
           </div>
           <button

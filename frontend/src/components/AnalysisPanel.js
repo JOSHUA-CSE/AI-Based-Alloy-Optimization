@@ -4,7 +4,7 @@ import ComparisonInput from "./ComparisonInput";
 import ComparisonTable from "./ComparisonTable";
 import ComparisonChart from "./ComparisonChart";
 import WhatIfScenario from "./WhatIfScenario";
-import { compareCompositions, runWhatIfScenario } from "../services/api";
+import { compareCompositions } from "../services/api";
 
 function AnalysisPanel({ data, originalComposition, onNavigateToHistory }) {
   const [activeTab, setActiveTab] = useState("single");

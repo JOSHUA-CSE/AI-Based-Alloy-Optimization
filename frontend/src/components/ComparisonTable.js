@@ -1,14 +1,12 @@
-import React, { useState } from "react";
+import React from "react";
 
 function ComparisonTable({ comparisonData }) {
-  const [selectedProperties, setSelectedProperties] = useState(["strength"]);
 
   if (!comparisonData || !comparisonData.results || comparisonData.results.length === 0) {
     return <div className="text-center text-gray-500">No comparison data available</div>;
   }
 
   const results = comparisonData.results;
-  const baseline = results[0];
 
   // Get unique elements to display (top 15 by average presence)
   const elementAverages = {};

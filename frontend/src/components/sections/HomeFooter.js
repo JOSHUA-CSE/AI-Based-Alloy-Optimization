@@ -12,7 +12,7 @@ const HomeFooter = ({ onDashboardClick }) => {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-2xl">⚗️</span>
-              <span className="font-bold text-lg">AlloySense AI</span>
+              <span className="font-bold text-lg">Alloyfy</span>
             </div>
             <p className="text-slate-400 text-sm">
               Smart Materials. Smarter Decisions.
@@ -86,7 +86,7 @@ const HomeFooter = ({ onDashboardClick }) => {
           {/* Copyright */}
           <div className="text-center text-sm text-slate-500">
             <p>
-              &copy; {currentYear} AlloySense AI. All rights reserved.
+              &copy; {currentYear} Alloyfy. All rights reserved.
             </p>
           </div>
         </div>

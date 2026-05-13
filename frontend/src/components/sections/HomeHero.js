@@ -28,7 +28,7 @@ const HomeHero = ({ onDashboardClick }) => {
             {/* Quick Stats */}
             <div className="grid grid-cols-3 gap-4 pt-8 border-t border-slate-200">
               <div>
-                <div className="text-2xl font-bold text-blue-600">99.2%</div>
+                <div className="text-2xl font-bold text-blue-600">78%</div>
                 <div className="text-sm text-slate-600">Accuracy</div>
               </div>
               <div>
@@ -42,14 +42,13 @@ const HomeHero = ({ onDashboardClick }) => {
             </div>
           </div>
 
-          {/* Right: Image Placeholder */}
+          {/* Right: Image */}
           <div className="hidden lg:block">
-            <div className="relative h-96 bg-gradient-to-br from-blue-100 to-green-100 rounded-2xl border border-slate-200 shadow-lg flex items-center justify-center">
-              <div className="text-center">
-                <div className="text-6xl mb-3">🔬</div>
-                <p className="text-slate-600 font-medium">Advanced Material Analysis</p>
-              </div>
-            </div>
+            <img
+              src="https://ktcasting.com/wp-content/uploads/2023/11/Customization-of-alloy-steel-castings.jpg"
+              alt="Alloy Steel Castings"
+              className="w-full h-96 object-cover rounded-2xl border border-slate-200 shadow-lg"
+            />
           </div>
         </div>
       </div>

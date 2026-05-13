@@ -5,6 +5,7 @@ import AnalysisPanel from "./components/AnalysisPanel";
 import HistoryPage from "./components/HistoryPage";
 import ChatWidget from "./components/ChatWidget";
 import Homepage from "./components/Homepage";
+import AllofyLogo from "./components/AllofyLogo";
 import "./index.css";
 import "./styles/homepage.css";
 
@@ -94,7 +95,7 @@ function App() {
 
         {!result && !loading && !error && (
           <div className="mt-16 text-center py-12">
-            <div className="text-5xl mb-4">🧪</div>
+            <div className="mb-4"><AllofyLogo size={64} /></div>
             <h2 className="text-2xl font-semibold text-slate-900 mb-2">Alloyfy</h2>
             <p className="text-slate-500">Intelligent alloy optimization platform</p>
           </div>
