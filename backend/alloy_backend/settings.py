@@ -15,11 +15,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ==============================
 # SECURITY
 # ==============================
-SECRET_KEY = 'django-insecure-change-this-key'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-change-this-key')
 
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 
 # ==============================
@@ -47,6 +47,7 @@ INSTALLED_APPS = [
 # ==============================
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',  # MUST BE FIRST
+    'whitenoise.middleware.WhiteNoiseMiddleware',
 
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -95,12 +96,20 @@ WSGI_APPLICATION = 'alloy_backend.wsgi.application'
 # ==============================
 # DATABASE
 # ==============================
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+import dj_database_url
+
+# Use PostgreSQL in production, SQLite in development
+if os.getenv('DATABASE_URL'):
+    DATABASES = {
+        'default': dj_database_url.config(default=os.getenv('DATABASE_URL'), conn_max_age=600)
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 # MongoDB is handled separately via MongoEngine in predictor/mongo.py when configured.
 
 
@@ -128,6 +137,8 @@ USE_TZ = True
 # STATIC FILES
 # ==============================
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 
 # ==============================
@@ -139,6 +150,4 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # ==============================
 # CORS SETTINGS
 # ==============================
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-]
+CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000').split(',')
