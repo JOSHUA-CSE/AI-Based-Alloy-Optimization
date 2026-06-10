@@ -1,4 +1,6 @@
+import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Explicitly load .env from the backend root directory
@@ -99,6 +101,7 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+# MongoDB is handled separately via MongoEngine in predictor/mongo.py when configured.
 
 
 # ==============================
