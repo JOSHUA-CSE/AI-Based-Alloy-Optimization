@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: alloy-backend
+    runtime: python
+    pythonVersion: 3.12
+    buildCommand: pip install -r requirements.txt && python manage.py migrate
+    startCommand: gunicorn alloy_backend.wsgi
+    envVars:
+      - key: DEBUG
+        value: False
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        value: "*.onrender.com,localhost"
+      - key: CORS_ALLOWED_ORIGINS
+        value: "https://your-vercel-domain.vercel.app"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: alloy-db
+          property: connectionString
+databases:
+  - name: alloy-db
+    databaseName: alloy_db
+    user: alloy_user
