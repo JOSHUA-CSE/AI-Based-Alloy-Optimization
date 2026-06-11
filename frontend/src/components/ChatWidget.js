@@ -3,7 +3,8 @@ import ChatMessage from "./ChatMessage";
 import ChatInput from "./ChatInput";
 import TypingIndicator from "./TypingIndicator";
 
-const CHAT_URL = "http://localhost:8000/api/chat/";
+const API_BASE = (process.env.REACT_APP_API_URL || "http://127.0.0.1:8000/api/").replace(/\/$/, "");
+const CHAT_URL = `${API_BASE}/chat/`;
 
 const SUGGESTIONS = [
   "What is Steel?",
@@ -35,20 +36,17 @@ const ChatWidget = () => {
     setIsLoading(true);
 
     try {
-      console.log("📤 Sending:", input);
-
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          message: input,
+          messages: updatedMessages,
         }),
       });
 
       const data = await resp.json();
-      console.log("📥 Response:", data);
 
       if (data.reply) {
         setMessages((prev) => [
@@ -62,7 +60,6 @@ const ChatWidget = () => {
         ]);
       }
     } catch (e) {
-      console.error("❌ Error:", e);
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: "Network error. Please try again." },
@@ -74,7 +71,7 @@ const ChatWidget = () => {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "linear-gradient(160deg,#0a0a14,#0d0d1a)" }}>
-      
+
       {/* Header */}
       <div style={{ padding: "14px 16px", borderBottom: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.3)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

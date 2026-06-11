@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import "../styles/history-page.css";
 
+const API_BASE = (process.env.REACT_APP_API_URL || "http://127.0.0.1:8000/api/").replace(/\/$/, "");
+
 function HistoryPage() {
   const [history, setHistory] = useState([]);
   const [statistics, setStatistics] = useState(null);
@@ -12,7 +14,7 @@ function HistoryPage() {
   const fetchHistory = useCallback(async () => {
     try {
       setLoading(true);
-      const url = new URL("http://localhost:8000/api/history/");
+      const url = new URL(`${API_BASE}/history/`);
       if (filter !== "all") {
         url.searchParams.append("decision", filter);
       }
@@ -34,18 +36,17 @@ function HistoryPage() {
 
   const fetchStatistics = useCallback(async () => {
     try {
-      const response = await fetch("http://localhost:8000/api/statistics/");
+      const response = await fetch(`${API_BASE}/statistics/`);
       const data = await response.json();
 
       if (data.success) {
         setStatistics(data);
       }
     } catch (err) {
-      console.error("Error fetching statistics:", err);
+      // statistics failure is non-critical; silently ignore
     }
   }, []);
 
-  // Fetch history and statistics
   useEffect(() => {
     fetchHistory();
     fetchStatistics();
@@ -53,14 +54,14 @@ function HistoryPage() {
 
   const fetchDecisionDetail = async (decisionId) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/history/${decisionId}/`);
+      const response = await fetch(`${API_BASE}/history/${decisionId}/`);
       const data = await response.json();
 
       if (data.success) {
         setSelectedDecision(data);
       }
     } catch (err) {
-      console.error("Error fetching detail:", err);
+      setError(`Failed to load decision detail: ${err.message}`);
     }
   };
 
@@ -156,10 +157,9 @@ function HistoryPage() {
               <tbody>
                 {selectedDecision.ai_recommendation?.map((rec, idx) => {
                   const current = selectedDecision.input_composition?.[rec.element] ?? 0;
-                  // Support both new format (rec.recommended) and legacy format (rec.suggested_value)
                   const suggested = rec.recommended ?? rec.suggested_value ?? 0;
                   const change = rec.change ?? (suggested - current);
-                  
+
                   return (
                     <tr key={idx}>
                       <td><strong>{rec.element}</strong></td>
