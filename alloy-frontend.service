@@ -1,0 +1,20 @@
+[Unit]
+Description=Alloy AI System — React Frontend (serve)
+After=network.target
+
+[Service]
+User=ubuntu
+Group=ubuntu
+
+WorkingDirectory=/home/ubuntu/alloy-ai-system/frontend
+
+ExecStart=/usr/bin/serve -s build -l 3000
+
+Restart=always
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

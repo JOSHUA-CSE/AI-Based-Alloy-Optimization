@@ -1,0 +1,28 @@
+[Unit]
+Description=Alloy AI System — Gunicorn Backend
+After=network.target
+
+[Service]
+# Replace 'ubuntu' with your EC2 username if different
+User=ubuntu
+Group=ubuntu
+
+# Absolute path to your project on EC2
+WorkingDirectory=/home/ubuntu/alloy-ai-system/backend
+
+# Activate venv and start gunicorn
+ExecStart=/home/ubuntu/alloy-ai-system/backend/venv/bin/gunicorn \
+    alloy_backend.wsgi \
+    -c /home/ubuntu/alloy-ai-system/backend/gunicorn.conf.py
+
+Restart=always
+RestartSec=5
+
+# Pass the .env file to the process
+EnvironmentFile=/home/ubuntu/alloy-ai-system/backend/.env
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
