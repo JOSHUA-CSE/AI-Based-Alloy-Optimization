@@ -15,7 +15,7 @@ urlpatterns = [
     path('chat/', chat),
     path('manager-decision/', manager_decision),
     path('history/', get_history),
-    path('history/<int:decision_id>/', get_decision_detail),
+    path('history/<str:decision_id>/', get_decision_detail),
     path('statistics/', get_statistics),
     path('compare/', compare_alloys),
     path('what-if/', what_if_scenario),
