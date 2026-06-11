@@ -53,13 +53,13 @@ def normalize(comp):
 def predict_alloy(request):
     try:
         data = request.data
-        logger.info(f"API INPUT: {data}")
+        logger.info("API INPUT received")
 
         try:
             comp = np.array([float(data.get(col, 0)) if data.get(col) else 0 for col in columns])
         except (ValueError, TypeError) as e:
-            logger.error(f"Input parsing error: {e}")
-            return Response({"error": "Invalid input values. All values must be numeric.", "details": str(e)}, status=400)
+            logger.error("Input parsing error: %s", e)
+            return Response({"error": "Invalid input values. All values must be numeric."}, status=400)
 
         if len(comp) == 0 or np.all(comp == 0):
             return Response({"error": "Please enter at least one element composition value."}, status=400)
@@ -112,8 +112,7 @@ def predict_alloy(request):
             "deviation_score": deviation
         }
 
-        # Save to MongoDB
-        PreviousRun(
+        run = PreviousRun(
             composition=normalized_composition,
             composition_total=100.0,
             strength_prediction=original_strength,
@@ -121,14 +120,14 @@ def predict_alloy(request):
             confidence=int(original_conf),
             run_type='single',
             full_response=response_data
-        ).save()
+        )
+        run.save()
 
         return Response(response_data)
 
     except Exception as e:
-        error_msg = traceback.format_exc()
-        logger.error(f"API ERROR: {error_msg}")
-        return Response({"error": f"Internal server error: {str(e)}", "details": error_msg}, status=500)
+        logger.error("predict_alloy error: %s", traceback.format_exc())
+        return Response({"error": f"Internal server error: {str(e)}"}, status=500)
 
 
 @csrf_exempt
@@ -140,8 +139,8 @@ def chat(request):
         return JsonResponse({"error": "groq package not installed. Run: pip install groq"}, status=500)
 
     api_key = os.getenv("GROQ_API_KEY")
-    logger.info(f"GROQ_API_KEY loaded: {'YES' if api_key else 'NO - KEY IS MISSING'}")
     if not api_key:
+        logger.error("GROQ_API_KEY not configured")
         return JsonResponse({"error": "GROQ_API_KEY not configured on server."}, status=500)
 
     try:
@@ -153,7 +152,7 @@ def chat(request):
         return JsonResponse({"error": f"Invalid JSON body: {str(e)}"}, status=400)
 
     messages = data.get("messages", [])[-6:]
-    logger.info(f"Messages received: {len(messages)} message(s)")
+    logger.info("Chat: %d message(s) received", len(messages))
 
     try:
         client = Groq(api_key=api_key)
@@ -167,13 +166,12 @@ def chat(request):
             max_tokens=1024,
         )
         reply = response.choices[0].message.content
-        logger.info(f"Groq response received, length: {len(reply)} chars")
+        logger.info("Groq response received, length: %d chars", len(reply))
         return JsonResponse({"reply": reply})
 
     except Exception as e:
-        tb = traceback.format_exc()
-        logger.error(f"Groq API error:\n{tb}")
-        return JsonResponse({"error": str(e), "traceback": tb}, status=500)
+        logger.error("Groq API error: %s", traceback.format_exc())
+        return JsonResponse({"error": "Failed to get response from AI service."}, status=500)
 
 
 @api_view(['POST'])
@@ -206,7 +204,8 @@ def manager_decision(request):
             decision=decision,
             notes=notes,
             timestamp=datetime.utcnow()
-        ).save()
+        )
+        decision_doc.save()
 
         if decision == 'approved':
             machine_log = MachineLog(
@@ -219,7 +218,8 @@ def manager_decision(request):
                     'timestamp': datetime.utcnow().isoformat()
                 },
                 updated_at=datetime.utcnow()
-            ).save()
+            )
+            machine_log.save()
 
             return Response({
                 'success': True,
@@ -235,7 +235,7 @@ def manager_decision(request):
         }, status=201)
 
     except Exception as e:
-        logger.error(f"Manager decision error: {traceback.format_exc()}")
+        logger.error("Manager decision error: %s", traceback.format_exc())
         return Response({'error': f'Error processing decision: {str(e)}'}, status=500)
 
 
@@ -267,7 +267,7 @@ def get_history(request):
         return Response({'success': True, 'count': len(history), 'history': history})
 
     except Exception as e:
-        logger.error(f"History fetch error: {traceback.format_exc()}")
+        logger.error("History fetch error: %s", traceback.format_exc())
         return Response({'error': f'Error fetching history: {str(e)}'}, status=500)
 
 
@@ -303,7 +303,7 @@ def get_decision_detail(request, decision_id):
     except ManagerDecision.DoesNotExist:
         return Response({'error': 'Decision not found'}, status=404)
     except Exception as e:
-        logger.error(f"Decision detail error: {traceback.format_exc()}")
+        logger.error("Decision detail error: %s", traceback.format_exc())
         return Response({'error': f'Error fetching decision: {str(e)}'}, status=500)
 
 
@@ -323,7 +323,7 @@ def get_statistics(request):
         })
 
     except Exception as e:
-        logger.error(f"Statistics error: {traceback.format_exc()}")
+        logger.error("Statistics error: %s", traceback.format_exc())
         return Response({'error': f'Error fetching statistics: {str(e)}'}, status=500)
 
 
@@ -342,7 +342,7 @@ def compare_alloys(request):
             try:
                 comp = np.array([float(comp_dict.get(col, 0)) if comp_dict.get(col) else 0 for col in columns])
             except (ValueError, TypeError) as e:
-                return Response({'error': f'Invalid values in composition {i+1}.', 'details': str(e)}, status=400)
+                return Response({'error': f'Invalid values in composition {i+1}.'}, status=400)
 
             if np.all(comp == 0):
                 return Response({'error': f'Composition {i+1} has no elements.'}, status=400)
@@ -352,7 +352,7 @@ def compare_alloys(request):
         comparison_results = compare_compositions(compositions_array)
 
         for result in comparison_results['results']:
-            PreviousRun(
+            run = PreviousRun(
                 composition=result['composition'],
                 composition_total=100.0,
                 strength_prediction=result['strength'],
@@ -361,13 +361,14 @@ def compare_alloys(request):
                 run_type='comparison',
                 analysis_name=comparison_name,
                 full_response=result
-            ).save()
+            )
+            run.save()
 
         return Response({'success': True, 'comparison_name': comparison_name, 'comparison': comparison_results})
 
     except Exception as e:
-        logger.error(f"Comparison error: {traceback.format_exc()}")
-        return Response({'error': f'Error in comparison: {str(e)}', 'details': traceback.format_exc()}, status=500)
+        logger.error("Comparison error: %s", traceback.format_exc())
+        return Response({'error': f'Error in comparison: {str(e)}'}, status=500)
 
 
 @api_view(['POST'])
@@ -389,7 +390,7 @@ def what_if_scenario(request):
         try:
             comp = np.array([float(composition_dict.get(col, 0)) if composition_dict.get(col) else 0 for col in columns])
         except (ValueError, TypeError) as e:
-            return Response({'error': 'Invalid input values.', 'details': str(e)}, status=400)
+            return Response({'error': 'Invalid input values.'}, status=400)
 
         if np.all(comp == 0):
             return Response({'error': 'Please enter at least one element composition value.'}, status=400)
@@ -397,7 +398,7 @@ def what_if_scenario(request):
         comp = normalize(comp)
         scenario_results = what_if_element_variation(comp, element_name, variation_percentage, num_steps)
 
-        PreviousRun(
+        run = PreviousRun(
             composition={col: float(val) for col, val in zip(columns, comp.tolist())},
             composition_total=100.0,
             strength_prediction=scenario_results['baseline_strength'],
@@ -406,10 +407,11 @@ def what_if_scenario(request):
             run_type='what_if',
             analysis_name=scenario_name,
             full_response=scenario_results
-        ).save()
+        )
+        run.save()
 
         return Response({'success': True, 'scenario_name': scenario_name, 'scenario': scenario_results})
 
     except Exception as e:
-        logger.error(f"What-if scenario error: {traceback.format_exc()}")
-        return Response({'error': f'Error in what-if scenario: {str(e)}', 'details': traceback.format_exc()}, status=500)
+        logger.error("What-if scenario error: %s", traceback.format_exc())
+        return Response({'error': f'Error in what-if scenario: {str(e)}'}, status=500)
