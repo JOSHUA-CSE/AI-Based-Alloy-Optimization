@@ -3,25 +3,51 @@ import pandas as pd
 import joblib
 import pickle
 import logging
+from pathlib import Path
 from sklearn.metrics.pairwise import cosine_similarity
 
 logger = logging.getLogger(__name__)
 
-# Core ML artifacts
-model = joblib.load("predictor/ml/model.pkl")
-scaler = joblib.load("predictor/ml/scaler.pkl")
-columns = joblib.load("predictor/ml/columns.pkl")
+_ML_DIR = Path(__file__).resolve().parent
 
-# Pipeline artifacts (optional)
+# ---------------------------------------------------------------------------
+# Core ML artifact loading — absolute paths, Gunicorn/Linux safe
+# ---------------------------------------------------------------------------
+_model_path = _ML_DIR / "model.pkl"
+_scaler_path = _ML_DIR / "scaler.pkl"
+_columns_path = _ML_DIR / "columns.pkl"
+
+for _artifact, _path in [("model.pkl", _model_path), ("scaler.pkl", _scaler_path), ("columns.pkl", _columns_path)]:
+    if not _path.exists():
+        raise FileNotFoundError(
+            f"Required ML artifact not found: {_path}\n"
+            f"Run 'python predictor/ml/train.py' from the backend directory to generate artifacts."
+        )
+
+model = joblib.load(_model_path)
+scaler = joblib.load(_scaler_path)
+columns = joblib.load(_columns_path)
+logger.info("ML artifacts loaded: model, scaler, columns")
+
+# ---------------------------------------------------------------------------
+# Pipeline artifacts — optional but logged clearly when missing
+# ---------------------------------------------------------------------------
 pipeline_artifacts = None
+_pipeline_path = _ML_DIR / "pipeline_artifacts.pkl"
+
 try:
-    with open("predictor/ml/pipeline_artifacts.pkl", "rb") as f:
+    with open(_pipeline_path, "rb") as f:
         pipeline_artifacts = pickle.load(f)
-    logger.info("✅ Loaded pipeline artifacts for logic alignment")
+    logger.info("Pipeline artifacts loaded successfully")
+except FileNotFoundError:
+    logger.warning(
+        "pipeline_artifacts.pkl not found at %s. "
+        "Recommendations and grade matching will use fallback logic. "
+        "Run 'python predictor/ml/save_pipeline_artifacts.py' to generate.",
+        _pipeline_path,
+    )
 except Exception as e:
-    logger.warning(f"⚠️  pipeline_artifacts.pkl not found: {e}")
-    logger.warning("   Run: python predictor/ml/save_pipeline_artifacts.py")
-    pipeline_artifacts = None
+    logger.warning("Failed to load pipeline_artifacts.pkl: %s", e)
 
 if pipeline_artifacts:
     corr_matrix = pipeline_artifacts.get("correlation_matrix")
@@ -36,12 +62,6 @@ else:
     grade_db = None
     target_column = "Tensile Strength: Ultimate (UTS) (psi)"
 
-EXPECTED_ELEMENTS = [
-    "Al", "As", "B", "C", "Ca", "Ce", "Co", "Cr", "Cu", "Fe",
-    "La", "Mg", "Mn", "Mo", "N", "Nb", "Ni", "O", "P", "Pb",
-    "S", "Se", "Si", "Sn", "Ta", "Ti", "V", "W", "Zn", "Zr"
-]
-
 
 def predict_with_confidence(comp):
     """Return model prediction and a 0-100 confidence score."""
@@ -53,11 +73,9 @@ def predict_with_confidence(comp):
     try:
         if hasattr(model, 'estimators_'):
             tree_preds = [tree.predict(comp_scaled)[0] for tree in model.estimators_]
-        elif hasattr(model, 'estimators_'):
-            tree_preds = [tree.predict(comp_scaled)[0] for tree in model.estimators_[0].estimators_]
         else:
             tree_preds = [pred]
-    except:
+    except Exception:
         tree_preds = [pred]
 
     mean_pred = np.mean(tree_preds) if len(tree_preds) > 0 else pred
@@ -106,12 +124,11 @@ def recommend_changes(comp):
                         "reason": f"Negative correlation with strength (r={round(col_corr, 3)})"
                     })
         except Exception as e:
-            logger.warning(f"Error in correlation-based recommendations: {e}")
+            logger.warning("Error in correlation-based recommendations: %s", e)
             recs = []
 
     if not recs:
         logger.warning("Using fallback recommendations (no pipeline data)")
-        recs = []
 
     sorted_recs = sorted(recs, key=lambda x: abs(x["change"]), reverse=True)
     return sorted_recs[:8]
@@ -131,7 +148,7 @@ def root_cause_analysis(comp):
                     elif comp[i] > col_mean:
                         issues.append(f"High {col}")
         except Exception as e:
-            logger.warning(f"Error in feature importance analysis: {e}")
+            logger.warning("Error in feature importance analysis: %s", e)
             issues = []
 
     if not issues:
@@ -186,7 +203,7 @@ def match_grade(comp):
             best_sim = round(sims[best] * 100, 2)
             return best, best_sim
         except Exception as e:
-            logger.warning(f"Error in grade matching: {e}")
+            logger.warning("Error in grade matching: %s", e)
 
     logger.warning("Using fallback grade matching (no grade_db)")
     ref = np.ones(len(comp)) * 5
@@ -232,9 +249,8 @@ def optimize(comp):
     best = np.array(comp, dtype=float)
     best_pred, _ = predict_with_confidence(best)
     best_score = best_pred[0] - 0.03 * best_pred[1]
-    best_strength = float(best_pred[0])
 
-    for iteration in range(100):
+    for _ in range(100):
         trial = best + np.random.normal(0, 0.3, len(comp))
         trial = np.clip(trial, 0, 100)
 
@@ -243,15 +259,11 @@ def optimize(comp):
             trial = (trial / trial_sum) * 100
 
         pred, _ = predict_with_confidence(trial)
-        trial_strength = float(pred[0])
-        trial_melting_temp = float(pred[1])
-
-        trial_score = trial_strength - 0.03 * trial_melting_temp
+        trial_score = float(pred[0]) - 0.03 * float(pred[1])
 
         if trial_score > best_score:
             best_score = trial_score
             best = trial
-            best_strength = trial_strength
 
     final_sum = best.sum()
     if final_sum > 0:
@@ -263,8 +275,7 @@ def optimize(comp):
 def deviation_score(original, optimized):
     """Return normalized deviation (0-100) between two compositions."""
     deviation = float(np.linalg.norm(original - optimized))
-    normalized = min(100, deviation)
-    return normalized
+    return min(100, deviation)
 
 
 def what_if_element_variation(comp, element_name, variation_percentage, num_steps=21):
@@ -294,8 +305,7 @@ def what_if_element_variation(comp, element_name, variation_percentage, num_step
         original_other_sum = np.sum(trial) - trial[element_idx]
 
         trial[element_idx] = new_element_value
-        new_other_sum = original_other_sum
-        current_total = new_element_value + new_other_sum
+        current_total = new_element_value + original_other_sum
 
         if current_total > 0:
             trial = (trial / current_total) * 100
@@ -304,7 +314,7 @@ def what_if_element_variation(comp, element_name, variation_percentage, num_step
             pred, conf = predict_with_confidence(trial)
             strength = float(pred[0])
             melting_temp = float(pred[1])
-        except:
+        except Exception:
             strength = baseline_strength
             melting_temp = baseline_melting_temp
 
@@ -353,7 +363,7 @@ def compare_compositions(compositions_list):
             strength = float(pred[0])
             melting_temp = float(pred[1])
         except Exception as e:
-            logger.error(f"Error predicting composition {i}: {e}")
+            logger.error("Error predicting composition %d: %s", i, e)
             strength = 0
             melting_temp = 0
             conf = 0
