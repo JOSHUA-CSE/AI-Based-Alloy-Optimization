@@ -58,6 +58,25 @@ DATABASES = {
 _MONGO_URI = os.getenv('MONGO_URI')
 if _MONGO_URI and '<cluster>' not in _MONGO_URI:
     mongoengine.connect(host=_MONGO_URI, uuidRepresentation='standard')
+    print("✅ MongoDB Atlas connected successfully")
+    
+    # Create test collection to initialize database
+    if os.getenv('CREATE_TEST_DB') == 'True':
+        from predictor.models import PreviousRun
+        try:
+            test_run = PreviousRun(
+                composition={'Fe': 98.5},
+                strength_prediction=0.0,
+                melting_temp_prediction=0.0,
+                confidence=0,
+                run_type='single',
+                analysis_name='test'
+            )
+            test_run.save()
+            test_run.delete()
+            print("✅ Database 'alloy_db' initialized")
+        except Exception as e:
+            print(f"Database init: {e}")
 else:
     import logging
     logging.warning("MONGO_URI not set or still a placeholder. Update backend/.env with your Atlas connection string.")
