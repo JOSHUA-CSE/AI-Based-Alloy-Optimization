@@ -1,128 +1,95 @@
 import React, { useState } from "react";
-import { predictAlloy } from "../services/api";
+import { predictAlloy, readOpcuaComposition } from "../services/api";
 
-// All 30 elements
 const ALL_ELEMENTS = [
   "Al", "As", "B", "C", "Ca", "Ce", "Co", "Cr", "Cu", "Fe",
   "La", "Mg", "Mn", "Mo", "N", "Nb", "Ni", "O", "P", "Pb",
-  "S", "Se", "Si", "Sn", "Ta", "Ti", "V", "W", "Zn", "Zr"
+  "S", "Se", "Si", "Sn", "Ta", "Ti", "V", "W", "Zn", "Zr",
 ];
 
-// Element categories for smart randomization
-const ELEMENT_CATEGORIES = {
-  dominant: ["Fe"], // Should be 40-90%
-  major: ["Cr", "Ni", "Mn", "Si", "Co", "Mo", "Cu", "Ti"], // 0-15%
-  minor: ["P", "S", "C", "N", "O", "Pb", "As", "Se"], // 0-5%
-  rare: ["Al", "Mg", "Ca", "Ta", "Nb", "Zr", "W", "V", "B", "La", "Ce", "Sn", "Zn"] // 0-5%
-};
+const emptyValues = () => Object.fromEntries(ALL_ELEMENTS.map(element => [element, ""]));
 
-// Smart random value generator
-const getRandomValue = (element) => {
-  if (ELEMENT_CATEGORIES.dominant.includes(element)) {
-    return parseFloat((Math.random() * 50 + 40).toFixed(2)); // 40-90
-  } else if (ELEMENT_CATEGORIES.major.includes(element)) {
-    return parseFloat((Math.random() * 15).toFixed(2)); // 0-15
-  } else if (ELEMENT_CATEGORIES.minor.includes(element)) {
-    return parseFloat((Math.random() * 5).toFixed(2)); // 0-5
-  } else if (ELEMENT_CATEGORIES.rare.includes(element)) {
-    return parseFloat((Math.random() * 5).toFixed(2)); // 0-5
-  }
-  return parseFloat((Math.random() * 3).toFixed(2)); // 0-3
-};
+const getApiErrorMessage = (err) => {
+  const data = err.response?.data;
+  if (!data) return err.message || "Unable to read OPC-UA values";
 
-// Generate sample data with 2 modes: normalized (100%) or under-composition (<100%)
-// CONSTRAINT: Never exceeds 100%
-const generateSampleData = () => {
-  const sampleData = {};
-  ALL_ELEMENTS.forEach(element => {
-    sampleData[element] = getRandomValue(element);
-  });
-  
-  // Randomly pick generation mode: 0=normalize to 100%, 1=under-composition (<100%)
-  const mode = Math.floor(Math.random() * 2);
-  
-  const total = Object.values(sampleData).reduce((sum, val) => sum + val, 0);
-  
-  if (mode === 0) {
-    // MODE 0: Normalize to exactly 100%
-    if (total > 0) {
-      ALL_ELEMENTS.forEach(element => {
-        sampleData[element] = parseFloat(((sampleData[element] / total) * 100).toFixed(2));
-      });
-      
-      // Fix floating-point sum errors by adjusting the largest element
-      const roundedTotal = Object.values(sampleData).reduce((sum, val) => sum + val, 0);
-      if (Math.abs(roundedTotal - 100) > 0.01) {
-        let maxElement = ALL_ELEMENTS[0];
-        let maxValue = sampleData[maxElement];
-        ALL_ELEMENTS.forEach(el => {
-          if (sampleData[el] > maxValue) {
-            maxValue = sampleData[el];
-            maxElement = el;
-          }
-        });
-        const adjustment = 100 - roundedTotal;
-        sampleData[maxElement] = parseFloat((sampleData[maxElement] + adjustment).toFixed(2));
-      }
-    }
-  } else {
-    // MODE 1: Under-composition (scale to 50-95% - always less than 100%)
-    if (total > 0) {
-      const scaleFactor = (Math.random() * 0.45) + 0.5; // 50-95%
-      ALL_ELEMENTS.forEach(element => {
-        sampleData[element] = parseFloat(((sampleData[element] / total) * 100 * scaleFactor).toFixed(2));
-      });
-    }
+  const endpointErrors = data.details?.attempted_endpoints;
+  if (endpointErrors) {
+    const attempts = Object.entries(endpointErrors)
+      .map(([endpoint, message]) => `${endpoint}: ${message}`)
+      .join("; ");
+    return `${data.error} ${attempts}`;
   }
-  
-  return { data: sampleData, mode };
+
+  return data.error || data.detail || err.message || "Unable to read OPC-UA values";
 };
 
 function InputCard({ setResult, setOriginalComposition, setLoading, setError }) {
-  const [values, setValues] = useState(Object.fromEntries(ALL_ELEMENTS.map(e => [e, ""])));
+  const [values, setValues] = useState(emptyValues());
   const [animatingElements, setAnimatingElements] = useState(new Set());
-  const [generationMode, setGenerationMode] = useState(null); // Track generation mode
+  const [targetStrength, setTargetStrength] = useState("");
+  const [refreshingOpcua, setRefreshingOpcua] = useState(false);
 
-  const handleChange = (e, element) => {
-    const val = e.target.value;
-    if (val === "" || (!isNaN(val) && parseFloat(val) >= 0)) {
-      setValues({ ...values, [element]: val });
+  const handleChange = (event, element) => {
+    const value = event.target.value;
+    if (value === "" || (!Number.isNaN(Number(value)) && Number(value) >= 0)) {
+      setValues({ ...values, [element]: value });
     }
   };
 
-  const loadSampleData = () => {
-    const { data: newData, mode } = generateSampleData();
-    setValues(newData);
-    setGenerationMode(mode); // Track mode
-    
-    // Animate all elements
-    setAnimatingElements(new Set(ALL_ELEMENTS));
-    setTimeout(() => setAnimatingElements(new Set()), 600);
+  const refreshFromOpcua = async () => {
+    setRefreshingOpcua(true);
+    setError(null);
+
+    try {
+      const response = await readOpcuaComposition();
+      const opcuaValues = response.data || {};
+      const nextValues = Object.fromEntries(
+        ALL_ELEMENTS.map(element => {
+          const rawValue = opcuaValues[element];
+          const value = rawValue === undefined || rawValue === null
+            ? ""
+            : Number(rawValue).toFixed(2);
+
+          return [element, value];
+        })
+      );
+
+      setValues(nextValues);
+      setAnimatingElements(new Set(ALL_ELEMENTS));
+      setTimeout(() => setAnimatingElements(new Set()), 600);
+    } catch (err) {
+      setError(`OPC-UA Error: ${getApiErrorMessage(err)}`);
+      console.error(err);
+    } finally {
+      setRefreshingOpcua(false);
+    }
   };
 
   const resetForm = () => {
-    setValues(Object.fromEntries(ALL_ELEMENTS.map(e => [e, ""])));
-    setGenerationMode(null);
+    setValues(emptyValues());
+    setTargetStrength("");
     setError(null);
   };
 
-  // Calculate total composition
-  const total = Object.values(values).reduce((sum, val) => {
-    return sum + (val !== "" ? parseFloat(val) : 0);
+  const total = Object.values(values).reduce((sum, value) => {
+    return sum + (value !== "" ? Number(value) : 0);
   }, 0);
 
   const validateInputs = () => {
-    const filledElements = Object.values(values).filter(v => v !== "");
+    const filledElements = Object.values(values).filter(value => value !== "");
     if (filledElements.length === 0) {
       setError("Please enter at least one element composition");
       return false;
     }
-    for (let val of Object.values(values)) {
-      if (val !== "" && (isNaN(val) || parseFloat(val) < 0 || parseFloat(val) > 100)) {
+
+    for (const value of Object.values(values)) {
+      if (value !== "" && (Number.isNaN(Number(value)) || Number(value) < 0 || Number(value) > 100)) {
         setError("All values must be between 0 and 100");
         return false;
       }
     }
+
     setError(null);
     return true;
   };
@@ -131,20 +98,21 @@ function InputCard({ setResult, setOriginalComposition, setLoading, setError }) 
     if (!validateInputs()) return;
 
     const filledData = Object.fromEntries(
-      Object.entries(values).filter(([_, v]) => v !== "")
+      Object.entries(values).filter(([, value]) => value !== "")
     );
 
-    // Store original composition for comparison
     const originalComp = {};
-    Object.entries(filledData).forEach(([key, val]) => {
-      originalComp[key] = parseFloat(val);
+    Object.entries(filledData).forEach(([key, value]) => {
+      originalComp[key] = Number(value);
     });
     setOriginalComposition(originalComp);
 
     setLoading(true);
     try {
-      const res = await predictAlloy(filledData);
-      setResult(res.data);
+      const payload = { ...filledData };
+      if (targetStrength !== "") payload.target_strength = Number(targetStrength);
+      const response = await predictAlloy(payload);
+      setResult(response.data);
     } catch (err) {
       setError(`API Error: ${err.response?.data?.detail || err.message}`);
       console.error(err);
@@ -156,35 +124,35 @@ function InputCard({ setResult, setOriginalComposition, setLoading, setError }) 
   return (
     <div className="card mb-8">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold text-navy-500">🔬 Alloy Composition (%)</h2>
-        <button 
-          onClick={loadSampleData}
-          className="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium rounded-lg transition-all duration-200 border border-amber-200 hover:border-amber-300"
+        <h2 className="text-xl font-semibold text-navy-500">Alloy Composition (%)</h2>
+        <button
+          onClick={refreshFromOpcua}
+          disabled={refreshingOpcua}
+          className="px-4 py-2 bg-blue-50 hover:bg-blue-100 disabled:opacity-60 disabled:cursor-not-allowed text-blue-700 font-medium rounded-lg transition-all duration-200 border border-blue-200 hover:border-blue-300"
         >
-          📋 Load Sample
+          {refreshingOpcua ? "Refreshing..." : "Refresh OPC-UA"}
         </button>
       </div>
-      
-      {/* Composition Grid */}
+
       <div className="mb-6 pb-6 border-b border-slate-300">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-3">
-          {ALL_ELEMENTS.map(el => (
-            <div 
-              key={el}
+          {ALL_ELEMENTS.map(element => (
+            <div
+              key={element}
               className={`transition-all duration-500 ${
-                animatingElements.has(el) 
-                  ? "transform scale-105 bg-amber-50 rounded-lg p-2" 
+                animatingElements.has(element)
+                  ? "transform scale-105 bg-blue-50 rounded-lg p-2"
                   : "p-2"
               }`}
             >
               <label className="block text-xs font-semibold text-slate-700 mb-1 uppercase tracking-wide">
-                {el}
+                {element}
               </label>
               <input
                 type="number"
                 placeholder="0.0"
-                value={values[el]}
-                onChange={(e) => handleChange(e, el)}
+                value={values[element]}
+                onChange={(event) => handleChange(event, element)}
                 className="w-full px-2 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-navy-500 focus:border-transparent bg-white"
                 min="0"
                 max="100"
@@ -195,47 +163,58 @@ function InputCard({ setResult, setOriginalComposition, setLoading, setError }) 
         </div>
       </div>
 
-      {/* Total Composition Warning */}
       {total > 0 && (
         <div className={`mb-6 p-3 rounded-lg transition-all ${
           total > 100
             ? "bg-red-50 border border-red-300 text-red-700"
             : total < 100
-            ? "bg-yellow-50 border border-yellow-300 text-yellow-700"
-            : "bg-blue-50 border border-blue-300 text-blue-700"
+              ? "bg-yellow-50 border border-yellow-300 text-yellow-700"
+              : "bg-blue-50 border border-blue-300 text-blue-700"
         }`}>
           <p className="text-sm font-medium">
-            {total > 100 
-              ? "⚠️ Total exceeds 100%"
+            {total > 100
+              ? "Total exceeds 100%"
               : total < 100
-              ? "📊 Under-composition (< 100%)"
-              : "✅ Perfect composition (= 100%)"}
+                ? "Under-composition (< 100%)"
+                : "Perfect composition (= 100%)"}
             <span className="font-bold ml-2">{total.toFixed(2)}%</span>
           </p>
-          {generationMode !== null && (
-            <p className="text-xs text-slate-600 mt-1">
-              Generated mode: {
-                generationMode === 0 ? "Normalized (= 100%)" :
-                "Under-composition (50-95%)"
-              }
-            </p>
-          )}
         </div>
       )}
 
-      {/* Target Strength */}
+      <div className="mb-6 p-4 rounded-lg bg-blue-50 border border-blue-200">
+        <label className="block text-sm font-semibold text-slate-700 mb-1">
+          Target Tensile Strength (psi)
+          <span className="ml-2 text-xs font-medium text-slate-400 bg-slate-100 border border-slate-200 rounded-full px-2 py-0.5">optional</span>
+        </label>
+        <input
+          type="number"
+          min="0"
+          step="100"
+          placeholder="e.g. 90000"
+          value={targetStrength}
+          onChange={(event) => setTargetStrength(event.target.value)}
+          className="w-full px-3 py-2 text-sm border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+        />
+        {targetStrength && (
+          <p className="mt-1 text-xs text-blue-600">
+            AI will find the closest achievable composition to {Number(targetStrength).toLocaleString()} psi
+          </p>
+        )}
+      </div>
+
       <div className="flex gap-3">
-        <button 
+        <button
           onClick={handleSubmit}
           className="flex-1 px-6 py-3 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-semibold transition-all duration-200 hover:shadow-lg active:scale-95"
         >
-          ⚡ Analyze Alloy
+          Analyze Alloy
         </button>
-        <button 
+        <button
           onClick={resetForm}
           className="px-6 py-3 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold transition-all duration-200"
         >
-          🔄 Reset
+          Reset
         </button>
       </div>
     </div>

@@ -1,4 +1,7 @@
+import json
+import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Explicitly load .env from the backend root directory
@@ -99,6 +102,7 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+# MongoDB is handled separately via MongoEngine in predictor/mongo.py when configured.
 
 
 # ==============================
@@ -139,3 +143,75 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
 ]
+
+
+# ==============================
+# OPC-UA SETTINGS
+# ==============================
+OPCUA_SERVER_URL = os.getenv(
+    "OPCUA_SERVER_URL",
+    "opc.tcp://DESKTOP-MRDSLQ0:53530/OPCUA/SimulationServer",
+)
+DEFAULT_OPCUA_SERVER_URLS = [
+    OPCUA_SERVER_URL,
+    "opc.tcp://localhost:53530/OPCUA/SimulationServer",
+    "opc.tcp://127.0.0.1:53530/OPCUA/SimulationServer",
+]
+OPCUA_SERVER_URLS = json.loads(
+    os.getenv("OPCUA_SERVER_URLS_JSON", json.dumps(DEFAULT_OPCUA_SERVER_URLS))
+)
+OPCUA_NAMESPACE = int(os.getenv("OPCUA_NAMESPACE", "3"))
+OPCUA_TIMEOUT_SECONDS = float(os.getenv("OPCUA_TIMEOUT_SECONDS", "5"))
+
+# Used when a feature does not have an explicit entry in OPCUA_NODE_MAPPING.
+# Available placeholders: {namespace}, {field}, {field_upper}, {field_lower}
+OPCUA_NODE_ID_TEMPLATE = os.getenv(
+    "OPCUA_NODE_ID_TEMPLATE",
+    "ns={namespace};s=SteelPlant.{field_upper}",
+)
+
+# Override any feature-to-node mapping here or through OPCUA_NODE_MAPPING_JSON.
+# Keys may be the exact model fields (Cr, Al) or simulator browse names (CR, AL).
+DEFAULT_OPCUA_NODE_MAPPING = {
+    "CR": "ns=3;i=1009",
+    "AL": "ns=3;i=1010",
+    "AS": "ns=3;i=1011",
+    "B": "ns=3;i=1012",
+    "C": "ns=3;i=1013",
+    "CA": "ns=3;i=1014",
+    "CE": "ns=3;i=1015",
+    "CO": "ns=3;i=1016",
+    "CU": "ns=3;i=1017",
+    "FE": "ns=3;i=1018",
+    "LA": "ns=3;i=1019",
+    "MG": "ns=3;i=1020",
+    "MN": "ns=3;i=1021",
+    "MO": "ns=3;i=1022",
+    "N": "ns=3;i=1023",
+    "NB": "ns=3;i=1024",
+    "NI": "ns=3;i=1025",
+    "O": "ns=3;i=1026",
+    "P": "ns=3;i=1027",
+    "PB": "ns=3;i=1028",
+    "S": "ns=3;i=1029",
+    "SE": "ns=3;i=1030",
+    "SI": "ns=3;i=1031",
+    "SN": "ns=3;i=1032",
+    "TA": "ns=3;i=1033",
+    "TI": "ns=3;i=1034",
+    "V": "ns=3;i=1035",
+    "W": "ns=3;i=1036",
+    "ZN": "ns=3;i=1037",
+    "ZR": "ns=3;i=1038",
+}
+OPCUA_NODE_MAPPING = json.loads(
+    os.getenv("OPCUA_NODE_MAPPING_JSON", json.dumps(DEFAULT_OPCUA_NODE_MAPPING))
+)
+
+# Optional non-model metadata nodes returned by /api/opcua/read/.
+OPCUA_METADATA_NODE_MAPPING = json.loads(
+    os.getenv(
+        "OPCUA_METADATA_NODE_MAPPING_JSON",
+        '{"heat_number": "ns={namespace};s=SteelPlant.heat_number"}',
+    )
+)

@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-function OptimizationCard({ optimization, deviation, originalComposition }) {
+function OptimizationCard({ optimization, deviation, originalComposition, targetAnalysis }) {
   if (!optimization) return null;
 
   // Prepare comparison data
@@ -50,6 +50,51 @@ function OptimizationCard({ optimization, deviation, originalComposition }) {
   return (
     <div className="card">
       <h3 className="section-title">✨ Composition Overview</h3>
+
+      {targetAnalysis && (
+        <div className={`mb-6 p-4 rounded-lg border ${
+          targetAnalysis.feasible
+            ? "bg-emerald-50 border-emerald-300"
+            : "bg-amber-50 border-amber-300"
+        }`}>
+          <p className="text-sm font-semibold text-slate-700 mb-3">
+            🎯 Target Strength Analysis
+          </p>
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div>
+              <p className="text-xs text-slate-500">Target</p>
+              <p className="text-lg font-bold text-slate-800">
+                {targetAnalysis.target_strength.toLocaleString()} psi
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500">Best Achieved</p>
+              <p className={`text-lg font-bold ${
+                targetAnalysis.feasible ? "text-emerald-600" : "text-amber-600"
+              }`}>
+                {targetAnalysis.achieved_strength.toLocaleString()} psi
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500">Gap</p>
+              <p className="text-sm font-semibold text-slate-700">
+                {targetAnalysis.gap.toLocaleString()} psi ({((targetAnalysis.gap / targetAnalysis.target_strength) * 100).toFixed(1)}%)
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500">Confidence</p>
+              <p className="text-sm font-semibold text-slate-700">{targetAnalysis.confidence}%</p>
+            </div>
+          </div>
+          <p className={`text-xs font-medium ${
+            targetAnalysis.feasible ? "text-emerald-700" : "text-amber-700"
+          }`}>
+            {targetAnalysis.feasible
+              ? "✅ Target is achievable with the suggested composition below."
+              : "⚠️ Target may be outside the feasible range. Closest composition is shown."}
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4 mb-6 pb-6 border-b border-slate-200">
         <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200">

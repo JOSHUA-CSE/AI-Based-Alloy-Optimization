@@ -59,11 +59,11 @@
 }
 
 .input-form > .sliders-container {
-  padding: 0 30px 30px 30px;
+  padding: 0 30px 10px 30px;
   display: flex;
   flex-direction: column;
   gap: 18px;
-  margin-bottom: 25px;
+  margin-bottom: 0;
 }
 
 .slider {
@@ -165,6 +165,63 @@
 .submit-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.target-strength-section {
+  margin: 0 30px 20px 30px;
+  padding: 16px;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.3);
+  border-radius: 8px;
+}
+
+.target-label {
+  display: block;
+  font-weight: 600;
+  font-size: 13px;
+  color: #cbd5e1;
+  margin-bottom: 8px;
+}
+
+.optional-tag {
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748b;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 1px 7px;
+  margin-left: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.target-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 14px;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.target-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.target-input::placeholder {
+  color: #475569;
+}
+
+.target-hint {
+  margin: 8px 0 0 0;
+  font-size: 12px;
+  color: #60a5fa;
 }
 
 .error-message {

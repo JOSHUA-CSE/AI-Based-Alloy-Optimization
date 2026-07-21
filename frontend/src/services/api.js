@@ -5,6 +5,7 @@ const API = axios.create({
 });
 
 export const predictAlloy = (data) => API.post("predict/", data);
+export const readOpcuaComposition = () => API.get("opcua/read/");
 
 // Feature 6: Compare multiple compositions
 export const compareCompositions = (compositions, comparisonName) =>

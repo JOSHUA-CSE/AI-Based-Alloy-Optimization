@@ -260,6 +260,36 @@ def optimize(comp):
     return best
 
 
+def optimize_to_target(comp, target_strength):
+    """Search for a composition whose predicted strength is closest to target_strength."""
+    best = np.array(comp, dtype=float)
+    best_pred, _ = predict_with_confidence(best)
+    best_strength = float(best_pred[0])
+    best_gap = abs(best_strength - target_strength)
+
+    for _ in range(200):
+        trial = best + np.random.normal(0, 0.5, len(comp))
+        trial = np.clip(trial, 0, 100)
+        trial_sum = trial.sum()
+        if trial_sum > 0:
+            trial = (trial / trial_sum) * 100
+
+        pred, _ = predict_with_confidence(trial)
+        trial_strength = float(pred[0])
+        gap = abs(trial_strength - target_strength)
+
+        if gap < best_gap:
+            best_gap = gap
+            best = trial
+            best_strength = trial_strength
+
+    final_sum = best.sum()
+    if final_sum > 0:
+        best = (best / final_sum) * 100
+
+    return best, best_strength, best_gap
+
+
 def deviation_score(original, optimized):
     """Return normalized deviation (0-100) between two compositions."""
     deviation = float(np.linalg.norm(original - optimized))

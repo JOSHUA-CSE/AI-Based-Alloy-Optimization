@@ -9,6 +9,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from dotenv import load_dotenv
 from .models import ManagerDecision, MachineLog, PreviousRun
+from .opcua_client import (
+    OpcUaConfigurationError,
+    OpcUaConnectionError,
+    OpcUaReadError,
+    opcua_client,
+)
 
 # Explicitly load .env from the backend root (where manage.py lives)
 load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env")
@@ -27,6 +33,7 @@ from .ml.predictor import (
     match_grade,
     risk_analysis,
     optimize,
+    optimize_to_target,
     deviation_score,
     what_if_element_variation,
     compare_compositions,
@@ -50,14 +57,30 @@ def normalize(comp):
     return normalized
 
 
-@api_view(['POST'])
-def predict_alloy(request):
+def _opcua_error_response(exc, status_code=502):
+    """Build a consistent JSON error response for OPC-UA failures."""
+    details = getattr(exc, "details", None)
+    payload = {
+        "error": str(exc),
+        "source": "opcua",
+    }
+    if details:
+        payload["details"] = details
+    return Response(payload, status=status_code)
+
+
+def _build_composition_array(data):
+    """Create the model input array using the saved feature order."""
+    return np.array([float(data.get(col, 0)) if data.get(col) else 0 for col in columns])
+
+
+def _run_prediction_workflow(data):
+    """Run the existing prediction workflow after input values are obtained."""
     try:
-        data = request.data
         logger.info(f"API INPUT: {data}")
 
         try:
-            comp = np.array([float(data.get(col, 0)) if data.get(col) else 0 for col in columns])
+            comp = _build_composition_array(data)
         except (ValueError, TypeError) as e:
             logger.error(f"Input parsing error: {e}")
             return Response({
@@ -95,6 +118,26 @@ def predict_alloy(request):
         optimized_melting_temp = float(optimized_pred[1])
         deviation = deviation_score(comp, optimized_comp)
 
+        # Optional target strength
+        target_strength_raw = data.get("target_strength")
+        target_analysis = None
+        if target_strength_raw:
+            try:
+                target_strength = float(target_strength_raw)
+                t_comp, t_strength, t_gap = optimize_to_target(comp, target_strength)
+                t_pred, t_conf = predict_with_confidence(t_comp)
+                target_analysis = {
+                    "target_strength": target_strength,
+                    "achieved_strength": round(t_strength, 2),
+                    "gap": round(t_gap, 2),
+                    "achieved_melting_temp": round(float(t_pred[1]), 2),
+                    "confidence": t_conf,
+                    "composition": {k: round(float(v), 2) for k, v in zip(columns, t_comp.tolist())},
+                    "feasible": t_gap < (target_strength * 0.05),
+                }
+            except (ValueError, TypeError):
+                pass
+
         response_data = {
             "original_composition": normalized_composition,
             "original_composition_total": round(float(np.sum(comp)), 2),
@@ -120,7 +163,8 @@ def predict_alloy(request):
                 "new_melting_temp": optimized_melting_temp,
                 "composition": {k: round(float(v), 2) for k, v in zip(columns, optimized_comp.tolist())}
             },
-            "deviation_score": deviation
+            "deviation_score": deviation,
+            "target_analysis": target_analysis
         }
 
         logger.info(f"API OUTPUT: {response_data}")
@@ -134,6 +178,59 @@ def predict_alloy(request):
             "error": f"Internal server error: {str(e)}",
             "details": error_msg
         }, status=500)
+
+
+@api_view(['POST'])
+def predict_alloy(request):
+    source = str(request.data.get("source", "manual")).lower()
+    if source == "opcua":
+        try:
+            opcua_result = opcua_client.read_composition()
+        except OpcUaConfigurationError as exc:
+            return _opcua_error_response(exc, status_code=500)
+        except OpcUaConnectionError as exc:
+            return _opcua_error_response(exc, status_code=503)
+        except OpcUaReadError as exc:
+            return _opcua_error_response(exc, status_code=502)
+
+        data = dict(opcua_result.values)
+        if request.data.get("target_strength"):
+            data["target_strength"] = request.data.get("target_strength")
+        return _run_prediction_workflow(data)
+
+    return _run_prediction_workflow(request.data)
+
+
+@api_view(['GET'])
+def read_opcua_composition(request):
+    """Read raw alloy composition values from the configured OPC-UA server."""
+    try:
+        opcua_result = opcua_client.read_composition()
+        return Response(opcua_result.values)
+    except OpcUaConfigurationError as exc:
+        return _opcua_error_response(exc, status_code=500)
+    except OpcUaConnectionError as exc:
+        return _opcua_error_response(exc, status_code=503)
+    except OpcUaReadError as exc:
+        return _opcua_error_response(exc, status_code=502)
+
+
+@api_view(['POST'])
+def predict_alloy_from_opcua(request):
+    """Read OPC-UA values and run the existing prediction workflow."""
+    try:
+        opcua_result = opcua_client.read_composition()
+    except OpcUaConfigurationError as exc:
+        return _opcua_error_response(exc, status_code=500)
+    except OpcUaConnectionError as exc:
+        return _opcua_error_response(exc, status_code=503)
+    except OpcUaReadError as exc:
+        return _opcua_error_response(exc, status_code=502)
+
+    data = dict(opcua_result.values)
+    if request.data.get("target_strength"):
+        data["target_strength"] = request.data.get("target_strength")
+    return _run_prediction_workflow(data)
 
 
 @csrf_exempt

@@ -26,7 +26,7 @@ function Dashboard({ data, originalComposition, onNavigateToHistory }) {
 
       {/* Row 3: Optimization & What-If */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <OptimizationCard optimization={data.optimization} deviation={data.deviation_score} originalComposition={originalComposition} />
+        <OptimizationCard optimization={data.optimization} deviation={data.deviation_score} originalComposition={originalComposition} targetAnalysis={data.target_analysis} />
         <WhatIfCard whatIfData={data.what_if} gradeMatching={data.grade_matching} />
       </div>
 
